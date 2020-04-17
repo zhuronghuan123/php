@@ -1,0 +1,107 @@
+/*
+参数说明：
+$count:总记录数
+$page_size:每页显示的数量
+$num_btn:显示的分页页码个数
+$page:分页的GET字符串
+返回值：数组('limit','html')
+ */
+function page($count,$page_size=10,$num_btn=10,$page='page'){
+	//验证GET参数是否存在，是否是数字，是否小于1，是否是小数的处理
+	if(!isset($_GET[$page]) || !is_numeric($_GET[$page]) || $_GET[$page]<1){
+		$_GET[$page]=1;
+	}else if(!is_int($_GET[$page])){
+		$_GET[$page]=ceil($_GET[$page]);
+	}
+	
+	if($count==0){//如果栏目没有内容则返回空字符串
+		$data=array(
+		'limit'=>'',
+		'html'=>''
+		);
+	return $data;
+	}
+	
+	$page_num_all=ceil($count/$page_size); //总页数 向上取整
+	if($_GET[$page]>$page_num_all){
+		$_GET[$page]=$page_num_all;
+	}
+	$start=($_GET[$page]-1)*$page_size;
+	$limit="limit {$start},{$page_size}";
+
+	$current_url=$_SERVER['REQUEST_URI'];//获取当前url地址
+	$uri=parse_url($current_url);//把url地址用?拆分放到数组里。
+	$uri_path=$uri['path'];//?之前的内容
+	$url='';
+	if(isset($uri['query'])){ //?之后的内容
+		parse_str($uri['query'],$arr_query);
+		unset($arr_query[$page]);
+		
+		if(empty($arr_query)){
+			$url="{$uri_path}?{$page}=";
+		}else{
+			$other=http_build_query($arr_query);
+			$url="{$uri_path}?{$other}&{$page}=";
+		}
+	}else{
+		$url="{$uri_path}?{$page}=";
+	}
+	$html=array();
+	if($num_btn>=$page_num_all){
+		for($i=1;$i<=$page_num_all;$i++){
+			if($_GET[$page]==$i){
+				$html[$i]="<span>{$i}</span>";
+			}else{
+				$html[$i]="<a href='{$url}{$i}' class='btn btn-danger'>{$i}</a>";
+			}
+		}
+	}else{
+		$num_left=floor(($num_btn-1)/2);
+
+		$start=$_GET[$page]-$num_left;
+		$end=$start+($num_btn-1);
+		if($start<1){
+			$start=1;
+		}elseif($end>$page_num_all){
+			$start=$page_num_all-($num_btn-1);
+		}
+		for($i=0;$i<$num_btn;$i++){
+			if($_GET[$page]==$start){
+				$html[$start]="<span>{$start}</span>";
+			}else{
+				$html[$start]="<a href='{$url}{$start}' class='btn btn-danger'>{$start}</a>";
+			}
+		$start++;
+		}
+		if(count($html)>3){
+			reset($html);//处理数组指针让他指向第一个单元
+			$key_first=key($html);//获取数组的指针指向的单元键名
+			end($html);//处理数组指针让他指向最后一个单元
+			$key_end=key($html);//获取数组的指针指向的单元键名
+			if($key_first!=1){
+				array_shift($html);
+				array_unshift($html, "<a href='{$url}1' class='btn btn-danger'>1...</a>");
+			}
+			if($key_end!=$page_num_all){
+				array_pop($html);
+				array_push($html,"<a href='{$url}{$page_num_all}' class='btn btn-danger'>...{$page_num_all}</a>");
+			}
+		}
+	}
+
+	if($_GET[$page]!=1){
+		$prev=$_GET[$page]-1;
+		array_unshift($html, "<a href='{$url}{$prev}' class='btn btn-danger'>« 上一页</a>");
+	}
+	if($_GET[$page]!=$page_num_all){
+		$next=$_GET[$page]+1;
+		array_push($html, "<a href='{$url}{$next}' class='btn btn-danger'>下一页 »</a>");
+	}
+
+	$html=implode(' ', $html);
+	$data=array(
+		'limit'=>$limit,
+		'html'=>$html
+		);
+	return $data;
+}
